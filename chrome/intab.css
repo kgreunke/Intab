@@ -7,6 +7,7 @@
   background: rgba(0,0,0,.8); 
   z-index: 999999999999999999999999999999999999; 
   cursor: col-resize;
+  text-align: left;
 }
 
 .intabExt-control {
@@ -54,7 +55,16 @@
   position: absolute;
   top: 0px;
   left: 36px;
+  width: 100%;
   cursor: auto;
+}
+
+.intabExt-iframe-cover {
+  position: absolute;
+  height: 100%;
+  top: 0;
+  left: 36;
+  z-index: 99;
 }
 
 @font-face{

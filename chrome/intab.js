@@ -3,19 +3,22 @@ var IntabExt = {
   cmd: false,
   alt: false,
   open: false,
+  peeking: false,
   $container: null,
   $frame: null,
+  $framecover: null,
   $urlForm: null,
   $urlInput: null,
   speed: 250,
   width: 0,
 
   init: function() {
-    $("body").append('<div class="intabExt"><a href="#close" title="Close" class="intabExt-close intabExt-control"><i class="fa-icon-remove"></i></a><br /><a href="#open_full_tab" title="Open in New Tab" class="intabExt-expand intabExt-control"><i class="fa-icon-external-link"></i></a><form class="intabExt-urlForm"><input type="text" placeholder="Enter url..." /></form><iframe width="100%" height="100%" src=""></iframe></div>');
+    $("body").append('<div class="intabExt"><a href="#close" title="Close" class="intabExt-close intabExt-control"><i class="fa-icon-remove"></i></a><br /><a href="#open_full_tab" title="Open in New Tab" class="intabExt-expand intabExt-control"><i class="fa-icon-external-link"></i></a><form class="intabExt-urlForm"><input type="text" placeholder="Enter url..." /></form><iframe width="100%" height="100%" src=""></iframe><div class="intabExt-iframe-cover"></div></div>');
     this.$container = $('.intabExt');
     this.$frame = $('.intabExt iframe');
     this.$urlForm = $('.intabExt-urlForm');
     this.$urlInput = $('.intabExt-urlForm input');
+    this.$framecover = $('.intabExt .intabExt-iframe-cover');
     this.bindEvents();
   },
 
@@ -26,9 +29,8 @@ var IntabExt = {
       if (href.indexOf("http://")==0 && href.indexOf("https://")==0) {
         return;
       }
-      if (IntabExt.cmd && IntabExt.alt || IntabExt.open) {
+      if (IntabExt.open || (IntabExt.cmd && IntabExt.alt)) {
         IntabExt.show(href);
-        event.stopPropagation();
         return false;
       }
     });
@@ -39,11 +41,11 @@ var IntabExt = {
 
     $(window).keydown(function(evt) {
       if (evt.which == 27) IntabExt.close();
-      if (evt.which == 91) IntabExt.cmd = true;
-      if (evt.which == 18) IntabExt.alt = true;
+      if (!IntabExt.cmd && evt.which == 91) IntabExt.cmd = true;
+      if (!IntabExt.alt && evt.which == 18) IntabExt.alt = true;
 
-      if (!IntabExt.open && (IntabExt.cmd && IntabExt.alt)) {
-        IntabExt.peak();
+      if (!IntabExt.open && !IntabExt.peeking && (IntabExt.cmd && IntabExt.alt)) {
+        IntabExt.peek();
       }
 
       if (IntabExt.cmd && IntabExt.alt) {
@@ -56,10 +58,10 @@ var IntabExt = {
       }
 
     }).keyup(function(evt) {
-      if (evt.which == 91) IntabExt.cmd = false;
-      if (evt.which == 18) IntabExt.alt = false;
+      if (IntabExt.cmd && evt.which == 91) IntabExt.cmd = false;
+      if (IntabExt.alt && evt.which == 18) IntabExt.alt = false;
 
-      if (!IntabExt.open && (!IntabExt.cmd || !IntabExt.alt)) {
+      if (IntabExt.peeking && (!IntabExt.cmd || !IntabExt.alt)) {
         IntabExt.close();
       }
     });
@@ -84,28 +86,24 @@ var IntabExt = {
       axis: 'x',
       iframeFix: true,
       drag: function( event, ui ) {
-        
+        if (IntabExt.peeking) {
+          IntabExt.peeking = false;
+          IntabExt.open = true;
+        }
         IntabExt.width = 100 - (ui.position.left / $(window).width() *100);
         if (IntabExt.width < 98 && IntabExt.width > 1) {
-          IntabExt.$container.width(IntabExt.width + '%');
+          IntabExt.$container.css('width', IntabExt.width + '%');
         } else {
           return false;
-        }
-        if (IntabExt.width > 10) {
-          IntabExt.open = true;
         }
       },
       
       start: function () {
-          IntabExt.$container.each(function (index, element) {
-          var d = $('<div class="iframeCover" style="z-index:99;position:absolute;width:100%;top:0px;left:0px;height:' + $(element).height() + 'px"></div>');
-          $(element).append(d);});
+        IntabExt.$framecover.css('width', '100%');
       },
 
       stop: function (event, ui) {
-       IntabExt.$container.css('right', '0px');
-       IntabExt.$container.css('left', 'auto');
-       $('.iframeCover').remove();
+        IntabExt.$framecover.css('width', 0);
        if (IntabExt.width < 5) {
         IntabExt.close();
        }
@@ -114,45 +112,49 @@ var IntabExt = {
 
     $(".intabExt-close").on("click", function() {
       IntabExt.close();
+      return false;
     });
 
     $(".intabExt-expand").on("click", function() {
       window.open($(".intabExt iframe").attr('src'));
-      intabExt.close();
+      IntabExt.close();
+      return false;
     })
 
 
   },
 
-  peak: function() {
+  peek: function() {
     this.$container.animate({width: "20px"});
+    this.peeking = true;
   },
 
   show: function(href) {
-    this.$container.show();
     this.$frame.attr('src', href);
     if (!this.open) {
       this.$container.animate({width: '40%'}, this.speed);
     }
     this.$urlInput.val(href);
     this.open = true;
+    this.peeking = false;
   },
 
   close: function() {
-    this.$container.animate({width: '0px', right: '0px', left: 'auto'});
     this.$frame.attr('src', '');
+    this.$container.css({right: '0', left: 'auto'}).animate({width: 0});
     this.open = false;
+    this.peeking = false;
     this.$urlInput.val('');
   },
 
   getSelection: function() {
-      var text = "";
-      if (window.getSelection) {
-          text = window.getSelection().toString();
-      } else if (document.selection && document.selection.type != "Control") {
-          text = document.selection.createRange().text;
-      }
-      return text;
+    var text = "";
+    if (window.getSelection) {
+        text = window.getSelection().toString();
+    } else if (document.selection && document.selection.type != "Control") {
+        text = document.selection.createRange().text;
+    }
+    return text;
   }
 }
 
